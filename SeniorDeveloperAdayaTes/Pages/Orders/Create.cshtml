@@ -1,0 +1,134 @@
+﻿@page "/ui/orders/create"
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Create Order</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <h1>Create Order</h1>
+            <p>Buat order baru.</p>
+        </div>
+        <a class="btn" href="/">Kembali</a>
+    </header>
+
+    <main class="container narrow">
+        <section class="card">
+            <form id="orderForm">
+                <div class="field">
+                    <label for="customerId">Customer ID</label>
+                    <input id="customerId" type="number" min="1" required placeholder="Contoh: 1001" />
+                </div>
+
+                <div class="field">
+                    <label for="shippingAddress">Shipping Address</label>
+                    <textarea id="shippingAddress" rows="3" required placeholder="Contoh: Jl. Masjid II"></textarea>
+                </div>
+
+                <div class="section-title top-gap">
+                    <div>
+                        <h2>Items</h2>
+                        <p>Masukkan Product ID dan quantity.</p>
+                    </div>
+                    <button type="button" class="btn" onclick="addItem()">+ Tambah Item</button>
+                </div>
+
+                <div id="items"></div>
+
+                <div id="message" class="message hidden"></div>
+
+                <div class="actions">
+                    <button id="submitBtn" class="btn primary" type="submit">Submit Order</button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        function addItem(productId = '', quantity = 1) {
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.innerHTML = `
+                <div class="field grow">
+                    <label>Product ID</label>
+                    <input class="productId" type="number" min="1" required value="${productId}" placeholder="1" />
+                </div>
+                <div class="field qty">
+                    <label>Quantity</label>
+                    <input class="quantity" type="number" min="1" required value="${quantity}" />
+                </div>
+                <div class="field remove-field">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn danger" onclick="this.closest('.item-row').remove()">Hapus</button>
+                </div>
+            `;
+            document.getElementById('items').appendChild(row);
+        }
+
+        document.getElementById('orderForm').addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const rows = [...document.querySelectorAll('.item-row')];
+            if (rows.length === 0) {
+                showMessage('Minimal harus ada 1 item.', 'error');
+                return;
+            }
+
+            const request = {
+                customerId: Number(document.getElementById('customerId').value),
+                shippingAddress: document.getElementById('shippingAddress').value.trim(),
+                items: rows.map(row => ({
+                    productId: Number(row.querySelector('.productId').value),
+                    quantity: Number(row.querySelector('.quantity').value)
+                }))
+            };
+
+            const button = document.getElementById('submitBtn');
+            button.disabled = true;
+            button.textContent = 'Memproses...';
+            hideMessage();
+
+            try {
+                const response = await fetch('/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(request)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    showMessage(result.message || 'Gagal membuat order.', 'error');
+                    button.disabled = false;
+                    button.textContent = 'Submit Order';
+                    return;
+                }
+
+                window.location.href = `/ui/orders/${result.id}`;
+            } catch {
+                showMessage('Tidak dapat terhubung ke server.', 'error');
+                button.disabled = false;
+                button.textContent = 'Submit Order';
+            }
+        });
+
+        function showMessage(text, type) {
+            const el = document.getElementById('message');
+            el.className = `message ${type}`;
+            el.textContent = text;
+        }
+
+        function hideMessage() {
+            const el = document.getElementById('message');
+            el.className = 'message hidden';
+            el.textContent = '';
+        }
+
+        addItem(1, 1);
+    </script>
+</body>
+</html>
